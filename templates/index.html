@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Complete User Info Collector</title>
+</head>
+<body>
+  <h2>User Information Logger</h2>
+  <p>This page collects full browser, device, and location data for demonstration purposes only.</p>
+
+  <script>
+    async function collectData() {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.textBaseline = "top";
+      ctx.font = "16px Arial";
+      ctx.fillText("Test", 2, 2);
+      const canvasFingerprint = canvas.toDataURL();
+
+      const gl = canvas.getContext('webgl');
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      const webglVendor = debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'unknown';
+      const webglRenderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown';
+
+      let batteryInfo = {};
+      try {
+        const battery = await navigator.getBattery();
+        batteryInfo = {
+          level: battery.level,
+          charging: battery.charging,
+          chargingTime: battery.chargingTime,
+          dischargingTime: battery.dischargingTime
+        };
+      } catch (e) {
+        batteryInfo = { error: e.message };
+      }
+
+      const connection = navigator.connection || {};
+      const plugins = Array.from(navigator.plugins).map(p => p.name);
+      const mimeTypes = Array.from(navigator.mimeTypes).map(m => m.type);
+
+      const data = {
+        url: window.location.href,
+        title: document.title,
+        referrer: document.referrer,
+        userAgent: navigator.userAgent,
+        appName: navigator.appName,
+        appVersion: navigator.appVersion,
+        platform: navigator.platform,
+        product: navigator.product,
+        language: navigator.language,
+        languages: navigator.languages,
+        doNotTrack: navigator.doNotTrack,
+        cookieEnabled: navigator.cookieEnabled,
+        online: navigator.onLine,
+        javaEnabled: navigator.javaEnabled?.() || false,
+        timezoneOffset: new Date().getTimezoneOffset(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        touchSupport: 'ontouchstart' in window,
+        maxTouchPoints: navigator.maxTouchPoints,
+        screen: {
+          width: screen.width,
+          height: screen.height,
+          availWidth: screen.availWidth,
+          availHeight: screen.availHeight,
+          colorDepth: screen.colorDepth,
+          pixelDepth: screen.pixelDepth,
+        },
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        },
+        orientation: {
+          angle: screen.orientation?.angle,
+          type: screen.orientation?.type
+        },
+        memory: navigator.deviceMemory || 'unknown',
+        cpuCores: navigator.hardwareConcurrency,
+        storageSupport: {
+          localStorage: typeof localStorage !== 'undefined',
+          sessionStorage: typeof sessionStorage !== 'undefined',
+          indexedDB: 'indexedDB' in window
+        },
+        canvasFingerprint,
+        webgl: {
+          vendor: webglVendor,
+          renderer: webglRenderer
+        },
+        battery: batteryInfo,
+        network: {
+          type: connection.type,
+          effectiveType: connection.effectiveType,
+          downlink: connection.downlink,
+          rtt: connection.rtt,
+          saveData: connection.saveData
+        },
+        plugins,
+        mimeTypes,
+        vendor: navigator.vendor,
+        devicePixelRatio: window.devicePixelRatio,
+        historyLength: window.history.length,
+        permissions: {}
+      };
+
+      // Permissions API example for geolocation
+      if (navigator.permissions) {
+        try {
+          const geoPerm = await navigator.permissions.query({name: 'geolocation'});
+          data.permissions.geolocation = geoPerm.state;
+        } catch (e) {
+          data.permissions.geolocation = 'unsupported';
+        }
+      }
+
+      return data;
+    }
+
+    async function sendData() {
+      const data = await collectData();
+      fetch('/log_info', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+    }
+
+    sendData();
+  </script>
+
+  <script type="module">
+    // FingerprintJS
+    import FingerprintJS from 'https://fpjscdn.net/v3/2quhXmuzMDc8URmXMPCS';
+    const fp = await FingerprintJS.load({ region: 'ap' });
+    const result = await fp.get();
+    console.log("FingerprintJS ID:", result.visitorId);
+  </script>
+</body>
+</html>
